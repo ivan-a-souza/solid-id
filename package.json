@@ -1,0 +1,43 @@
+{
+  "name": "solid-id",
+  "version": "1.0.0",
+  "description": "**SOLID ID** (Sortable, Ordered, Legible, Indexed, Distributed) é um gerador de identificadores únicos em TypeScript que produz IDs compactos, lexicograficamente ordenados e seguros para uso distribuído.",
+  "main": "dist/solid-id.cjs",
+  "module": "dist/solid-id.mjs",
+  "types": "dist/solid-id.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/solid-id.d.ts",
+      "import": "./dist/solid-id.mjs",
+      "require": "./dist/solid-id.cjs"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "test": "vitest"
+  },
+  "keywords": [
+    "id",
+    "uuid",
+    "ulid",
+    "ksuid",
+    "base62",
+    "typescript",
+    "solid-id"
+  ],
+  "author": "Ivan Augusto Xavier Souza",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/node": "^24.9.1",
+    "tsup": "^8.5.0",
+    "typescript": "^5.9.3",
+    "vitest": "^4.0.3"
+  },
+  "engines": { "node": ">=18" }
+  
+}
