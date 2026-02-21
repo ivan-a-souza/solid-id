@@ -1,66 +1,66 @@
 // src/solid-id.ts
 
 /**
- * Alfabeto base62: usado para gerar strings legíveis e compactas.
- * A ordem dos caracteres (0–9, A–Z, a–z) mantém a relação
- * lexicográfica consistente com a ordem numérica para strings de mesmo tamanho.
+ * Base62 alphabet: used to generate readable and compact strings.
+ * The order of characters (0–9, A–Z, a–z) keeps the lexicographical
+ * relationship consistent with the numerical order for same-sized strings.
  */
-export const alphabet: string = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz';
+export const ALPHABET: string = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz';
 
-/** Base (62) como BigInt, para divisões/módulos de números grandes. */
-export const BASE: bigint = BigInt(alphabet.length);
+/** Base (62) as BigInt, for divisions/modulus of large numbers. */
+export const BASE: bigint = BigInt(ALPHABET.length);
 
-/** Tabela de lookup para decodificação Base62 O(1) por caractere. */
+/** Lookup table for O(1) Base62 decoding per character. */
 const ALPHABET_INDEX: Record<string, number> = (() => {
   const map: Record<string, number> = Object.create(null);
-  for (let i = 0; i < alphabet.length; i++) map[alphabet[i]] = i;
+  for (let i = 0; i < ALPHABET.length; i++) map[ALPHABET[i]] = i;
   return map;
 })();
 
 /**
- * Época fixa para o timestamp relativo (início de 1985-05-17, 00:00:00Z).
- * -> Escolha arbitrária que dá folga de ~8923 anos antes de estourar 48 bits.
+ * Fixed epoch for the relative timestamp (start of 1985-05-17, 00:00:00Z).
+ * -> Arbitrary choice that gives ~8923 years of headroom before overflowing 48 bits.
  */
 export const EPOCH_MS: number = new Date('1985-05-17T00:00:00Z').getTime();
 
-/** Máscara de 48 bits para timestamp (2^48 - 1). */
+/** 48-bit mask for timestamp (2^48 - 1). */
 const TIMESTAMP_MASK: bigint = (1n << 48n) - 1n;
 
-/** Tamanhos em bits dos componentes do ID. */
+/** Bit sizes for the ID components. */
 const TIMESTAMP_BITS: number = 48;
 const ENTROPY_BITS: number = 64;
 const CHECKSUM_BITS: number = 16;
 
-/** Comprimento esperado da string Base62 (128 bits codificados). */
+/** Expected length of the Base62 string (encoded 128 bits). */
 export const ID_LENGTH: number = 22;
 
-/** Limite máximo de milissegundos representável em 48 bits. */
+/** Maximum millisecond timestamp representable in 48 bits. */
 const MAX_TIMESTAMP_MS_48: number = Number((1n << BigInt(TIMESTAMP_BITS)) - 1n);
 
-/** Deslocamentos precomputados (melhora leitura de bitpacking/desbitpacking). */
+/** Precomputed shifts (improves readability of bitpacking/unpacking). */
 const SHIFT_FOR_ENTROPY = BigInt(CHECKSUM_BITS);
 const SHIFT_FOR_TIMESTAMP = BigInt(ENTROPY_BITS + CHECKSUM_BITS);
 
-/** Máscaras úteis para extração. */
+/** Useful masks for extraction. */
 const MASK_CHECKSUM = (1n << BigInt(CHECKSUM_BITS)) - 1n;
 export const MASK_ENTROPY = (1n << BigInt(ENTROPY_BITS)) - 1n;
 
-/** Fonte de aleatoriedade de 64 bits */
+/** 64-bit randomness source */
 export type RandomSource64 = () => bigint;
 
-/** Opções para a geração de IDs */
+/** Options for ID generation */
 export interface GenerateOptions {
-  /** congelar o tempo em ms para testes/benchmarks */
+  /** freeze time in ms for testing/benchmarks */
   nowMs?: number;
-  /** fonte de entropia determinística de 64 bits, para testes */
+  /** 64-bit deterministic entropy source for testing */
   rng64?: RandomSource64;
-  /** fonte de crypto customizada (para testes/fuzz) */
+  /** custom crypto source (for testing/fuzzing) */
   crypto?: Crypto;
 }
 
 /** 
- * CRC-16-CCITT (polinômio 0x1021) – tabela pré-calculada para performance.
- * IIFE (Immediately Invoked Function Expression) para inicializar a tabela
+ * CRC-16-CCITT (polynomial 0x1021) – precomputed table for performance.
+ * IIFE (Immediately Invoked Function Expression) to initialize the table.
 */
 const CRC_TABLE: number[] = (() => {
   const table: number[] = new Array(256);
@@ -75,10 +75,10 @@ const CRC_TABLE: number[] = (() => {
 })();
 
 /**
- * Obtém a implementação de Crypto API segura.
- * @param options Opções que podem conter uma implementação customizada de Crypto
- * @returns A implementação de Crypto segura disponível
- * @throws Error se nenhuma fonte segura de aleatoriedade estiver disponível
+ * Gets a secure Crypto API implementation.
+ * @param options Options that may contain a custom Crypto implementation
+ * @returns The available secure Crypto implementation
+ * @throws Error if no secure source of randomness is available
  */
 function getCrypto(options?: GenerateOptions): Crypto {
   if (options?.crypto?.getRandomValues) return options.crypto;
@@ -88,15 +88,15 @@ function getCrypto(options?: GenerateOptions): Crypto {
 }
 
 /**
- * Implementação otimizada do algoritmo CRC-16-CCITT para um array de bytes.
- * Polinômio usado: x^16 + x^12 + x^5 + 1 (0x1021)
- * @param input Array de bytes ((timestamp[6] + entropy[8]) - 112 bits) para calcular o CRC
- * @returns Valor CRC-16-CCITT calculado como número inteiro (0..65535)
+ * Optimized implementation of the CRC-16-CCITT algorithm for a byte array.
+ * Polynomial used: x^16 + x^12 + x^5 + 1 (0x1021)
+ * @param input Byte array ((timestamp[6] + entropy[8]) - 112 bits) to calculate the CRC
+ * @returns Calculated CRC-16-CCITT value as an integer (0..65535)
  */
 export function crc16CCITT(input: Uint8Array): number {
-  // Inicializa o valor do CRC
+  // Initializes the CRC value
   let crc = 0xFFFF;
-  // Processa cada byte do input
+  // Processes each byte of the input
   for (let i = 0; i < input.length; i++) {
     crc = ((crc << 8) & 0xFF00) ^ CRC_TABLE[((crc >> 8) & 0xFF) ^ input[i]];
   }
@@ -104,57 +104,57 @@ export function crc16CCITT(input: Uint8Array): number {
 }
 
 /**
- * Converte um BigInt para uma sequência de bytes (Uint8Array) big-endian com tamanho fixo.
- * @param value O valor BigInt a ser convertido
- * @param byteLength Número de bytes desejados no array de saída (preenchido com zeros à esquerda se necessário)
- * @returns Array de bytes representando o BigInt
+ * Converts a BigInt to a big-endian byte sequence (Uint8Array) with fixed length.
+ * @param value The BigInt value to convert
+ * @param byteLength Number of desired bytes in the output array (left-padded with zeros if necessary)
+ * @returns Byte array representing the BigInt
  */
 export function bigintToBytes(value: bigint, byteLength: number): Uint8Array {
-  // Cria um array de bytes com o comprimento especificado
+  // Creates a byte array with the specified length
   const out = new Uint8Array(byteLength);
 
-  // Cópia do valor para manipulação
+  // Copy of the value for manipulation
   let v = value;
 
-  // Preenche o array com os bytes do BigInt
+  // Fills the array with the BigInt bytes
   for (let i = byteLength - 1; i >= 0; i--) {
-    // Extrai o byte menos significativo e armazena no array
+    // Extracts the least significant byte and stores it in the array
     out[i] = Number(v & 0xFFn);
-    // Desloca o valor para processar o próximo byte
+    // Shifts the value to process the next byte
     v >>= 8n;
   }
-  // Retorna o array de bytes preenchido
+  // Returns the filled byte array
   return out;
 }
 
 /**
- * Codifica um número inteiro grande (BigInt) para Base62 com comprimento fixo até ID_LENGTH.
- * @param number Número inteiro grande a ser codificado
- * @returns String codificada em base62 com comprimento ID_LENGTH
+ * Encodes a large integer (BigInt) to Base62 with fixed length up to ID_LENGTH.
+ * @param number Large integer to encode
+ * @returns Base62 encoded string with length ID_LENGTH
  */
-export function encodeBase62(number: bigint): string {
-  // Se o número for zero, retorna uma string de zeros com o comprimento fixo
+export function encodeBase62(number: bigint = 0n): string {
+  // If the number is zero, returns a string of zeros with the fixed length
   if (number === 0n) return '0'.padStart(ID_LENGTH, '0');
 
   let result: string = '';
   let n: bigint = number;
 
-  // Converte para base62 iterativamente
+  // Converts to base62 iteratively
   while (n > 0n) {
     const rem: bigint = n % BASE;
-    result = alphabet[Number(rem)] + result;
+    result = ALPHABET[Number(rem)] + result;
     n = n / BASE;
   }
 
-  // Preenche com zeros à esquerda para manter o tamanho fixo
+  // Left-pads with zeros to maintain the fixed size
   return result.padStart(ID_LENGTH, '0');
 }
 
 /**
- * Decodifica uma string Base62 para um BigInt
- * @param str A string Base62 a ser decodificada (somente [0-9A-Za-z])
- * @returns O valor numérico como BigInt
- * @throws Error se a string contiver caracteres inválidos
+ * Decodes a Base62 string to a BigInt
+ * @param str The Base62 string to decode (only [0-9A-Za-z])
+ * @returns The numerical value as a BigInt
+ * @throws Error if the string contains invalid characters
 */
 export function decodeBase62(str: string): bigint {
   let result: bigint = 0n;
@@ -169,38 +169,69 @@ export function decodeBase62(str: string): bigint {
 }
 
 /**
- * Gera um SOLID ID de 128 bits:
- * Layout (big-endian) do ID:
- * - 48 bits de timestamp desde 1985-05-17 (ordenável)
- * - 64 bits de entropia criptográfica aleatória por milissegundo (alta segurança)
- * - 16 bits de checksum (CRC-16-CCITT) para validação de integridade
- * @returns string Base62 com 22 caracteres, única e ordenável (URL-safe, banco-friendly)
- * @throws Error se a crypto API não estiver disponível
- * @throws Error se o valor do timestamp for inválido
+ * Extracts ID fields into BigInts and calculates the expected CRC.
+ * Internal use to avoid duplication in validateSolidId/parseSolidId.
+ */
+function extractFieldsFromBigint(fullId: bigint): {
+  timestamp48: bigint;
+  entropy64:  bigint;
+  checksum16: bigint;
+  computedChecksum16: bigint;
+} {
+  // Extracts raw components
+  const checksum16 = fullId & MASK_CHECKSUM;
+  const timestamp48 = fullId >> SHIFT_FOR_TIMESTAMP;
+  const entropy64  = (fullId >> SHIFT_FOR_ENTROPY) & MASK_ENTROPY;
+
+  // Recalculates CRC from the extracted timestamp (6 bytes) and entropy (8 bytes). (Main 112 bits - 14 bytes)
+  const timestampBytes = bigintToBytes(timestamp48, 6);
+  const entropyBytes = bigintToBytes(entropy64, 8);
+  const combined = new Uint8Array(14);
+  combined.set(timestampBytes, 0);
+  combined.set(entropyBytes, 6);
+  const computedChecksum16 = BigInt(crc16CCITT(combined));
+
+  return {
+    timestamp48, entropy64, checksum16, computedChecksum16
+  };
+}
+
+/**
+ * Generates a 128-bit SOLID ID:
+ * ID Layout (big-endian):
+ * - 48 bits of timestamp since 1985-05-17 (sortable)
+ * - 64 bits of random cryptographic entropy per millisecond (high security)
+ * - 16 bits of checksum (CRC-16-CCITT) for integrity validation
+ * @returns 22-character Base62 string, unique and sortable (URL-safe, database-friendly)
+ * @throws Error if crypto API is not available
+ * @throws Error if timestamp value is invalid
+ * @example
+ * const id = generateSolidId();
+ * console.log(id); // "00Dk4...xYz"
  */
 export function generateSolidId(options?: GenerateOptions): string {
-  const cryptoImpl = getCrypto();
+  const cryptoImpl = getCrypto(options);
 
-  // Obtém o tempo atual em milissegundos
+  // Gets the current time in milliseconds
   const now: number = typeof options?.nowMs === 'number' ? options.nowMs : Date.now();
 
-  // Calcula o tempo desde a época definida
+  // Calculates the time since the defined epoch
   const timeSinceEpoch: number = now - EPOCH_MS;
 
-  // Verifica se o tempo desde a época está dentro do limite de 48 bits
+  // Checks if the time since epoch is within the 48-bit limit
   if (timeSinceEpoch < 0 || timeSinceEpoch > MAX_TIMESTAMP_MS_48) { 
     throw new Error('Invalid timestamp value (out of 48-bit range)');
   }
 
-  // Calcula o timestamp relativo à época como BigInt e limita a 48 bits
+  // Calculates the timestamp relative to the epoch as BigInt and limits to 48 bits
   const timestamp: bigint = BigInt(timeSinceEpoch) & TIMESTAMP_MASK;
 
-  // Entropia: usa rng injetado se fornecido; caso contrário usa crypto
+  // Entropy: uses injected rng if provided; otherwise uses crypto
   const entropy =
     typeof options?.rng64 === 'function'
       ? (options?.rng64() & MASK_ENTROPY)
       : (() => {
-          // Gera dois números aleatórios de 32 bits e combina em 64 bits de entropia criptográfica segura
+          // Generates two 32-bit random numbers and combines them into 64 bits of secure cryptographic entropy
           const randBuffer = new Uint32Array(2);
           cryptoImpl.getRandomValues(randBuffer);
           const randHi: bigint = BigInt(randBuffer[0]);
@@ -208,134 +239,176 @@ export function generateSolidId(options?: GenerateOptions): string {
           return (randHi << 32n) | randLo;
         })();
 
-  // Converte timestamp para arrays de 6 bytes
+  // Converts timestamp to a 6-byte array
   const timestampBytes: Uint8Array = bigintToBytes(timestamp, 6);
-  // Converte entropia para arrays de 8 bytes
+  // Converts entropy to an 8-byte array
   const entropyBytes: Uint8Array = bigintToBytes(entropy, 8);
-  // Combina os bytes de timestamp (6) e entropia (8) para calcular o CRC (14 bytes)
+  // Combines timestamp (6) and entropy (8) bytes to calculate the CRC (14 bytes)
   const combined: Uint8Array = new Uint8Array(14);
   combined.set(timestampBytes, 0);
   combined.set(entropyBytes, 6);
 
-  // Calcula o checksum CRC-16-CCITT dos 112 bits (14 bytes)
+  // Calculates the CRC-16-CCITT checksum of the 112 bits (14 bytes)
   const crc: bigint = BigInt(crc16CCITT(combined));
 
-  // Combina os componentes em um único BigInt de 128 bits - 48 (timestamp) + 64 (entropia) + 16 (checksum)
+  // Combines components into a single 128-bit BigInt - 48 (timestamp) + 64 (entropy) + 16 (checksum)
   const id: bigint = (timestamp << SHIFT_FOR_TIMESTAMP) | (entropy << SHIFT_FOR_ENTROPY) | crc;
 
-  // Converte o número final para uma string base62 legível com padding
+  // Converts the final number to a readable Base62 string with padding
   return encodeBase62(id);
 }
 
-/** * Verifica se um SOLID ID é válido usando o CRC interno
- * @param id A string de ID em Base62 para validar 
- * @returns true se o ID é válido, false caso contrário 
+/** * Verifies if a SOLID ID is valid using the internal CRC
+ * @param id The Base62 ID string to validate 
+ * @returns true if the ID is valid, false otherwise 
  * @example
  * validateSolidId('00Dk4...xYz') // true/false
 */
-export function validateSolidId(id: string): boolean { 
-  // Verifica se o ID tem o comprimento correto e contém apenas caracteres válidos 
-  if (id.length !== ID_LENGTH || !/^[0-9A-Za-z]+$/.test(id)) return false; 
-  
-  // Tenta extrair e validar os componentes do ID
-  try { 
-    // Converte a string Base62 de volta para um BigInt
-    const fullId = decodeBase62(id);
-    // Extrai os componentes 
-    const storedChecksum = fullId & MASK_CHECKSUM;
-    const timestamp = fullId >> SHIFT_FOR_TIMESTAMP;
-    const entropy = (fullId >> SHIFT_FOR_ENTROPY) & MASK_ENTROPY;
-    
-    // Recalcula CRC a partir do timestamp e entropia extraídos. (112 bits principais - 14 bytes)
-    const timestampBytes = bigintToBytes(timestamp, 6);
-    const entropyBytes = bigintToBytes(entropy, 8);
-    const combined = new Uint8Array(14);
-    combined.set(timestampBytes, 0);
-    combined.set(entropyBytes, 6);
-
-    // Calcula o checksum
-    const calculatedChecksum = BigInt(crc16CCITT(combined));
-    
-    // Compara os checksums
-    return storedChecksum === calculatedChecksum;
-  } catch (e) { 
-    // Em caso de erro (decodificação inválida), retorna falso
-    return false; 
-  }
+export function validateSolidId(id: string): boolean {
+  // Uses the existing parser to validate the ID
+  return parseSolidId(id).valid;
 }
 
 /**
- * Extrai o timestamp como um objeto Date de um SOLID ID
- * @param id A string de ID em Base62 (22 caracteres)
- * @returns O objeto Date correspondente ao timestamp do ID
- * @throws Error se o ID for inválido
+ * Extracts the timestamp as a Date object from a SOLID ID
+ * @param id The Base62 ID string (22 characters)
+ * @returns The Date object corresponding to the ID's timestamp
+ * @throws Error if the ID is invalid
  */
 export function getTimestampFromSolidId(id: string): Date {
-  // Valida o ID antes de extrair o timestamp
-  if (!validateSolidId(id)) throw new Error('Invalid SOLID ID');
-  // Decodifica o ID
-  const fullId = decodeBase62(id);
-  // Extrai o timestamp (48 bits mais significativos)
-  const timestamp = fullId >> SHIFT_FOR_TIMESTAMP;
-  // Converte o timestamp relativo para milissegundos absolutos
-  const timestampMs = Number(timestamp) + EPOCH_MS;
-  // Retorna o objeto Date correspondente
-  return new Date(timestampMs);
-}
-
-/** 
- * Interface para o resultado da análise de um SOLID ID
- */
-export interface ParsedSolidId {
-  valid: boolean;        // validação via CRC
-  timestampMs?: number;  // Date.UTC ms, se válido
-  timestamp48?: bigint;  // timestamp bruto (48 bits)
-  entropy64?: bigint;    // entropia bruta (64 bits)
-  checksum16?: number;   // CRC-16
+  // Reuses the parser to extract the timestamp
+  const parsed = parseSolidId(id);
+  // Validates the ID before returning the date
+  if (!parsed.valid || typeof parsed.timestampMs !== 'number') {
+    // Invalid ID
+    throw new Error('Invalid SOLID ID');
+  }
+  // Returns the date corresponding to the extracted timestamp
+  return new Date(parsed.timestampMs)
 }
 
 /**
- * Analisa um SOLID ID e extrai seus componentes.
- * @param id A string de ID em Base62 (22 caracteres)
- * @returns Um objeto com os componentes analisados e a validade do ID
+ * Possible status types when analyzing a SOLID ID
+ * @remarks
+ * Useful for detailed diagnostics.
+ */
+export type SolidIdParseStatus =
+  | 'OK'
+  | 'INVALID_LENGTH'
+  | 'INVALID_FORMAT'
+  | 'DECODE_ERROR'
+  | 'INVALID_CHECKSUM';
+
+/** 
+ * Interface for the SOLID ID analysis result
+ */
+export interface ParsedSolidId {
+  /** Analyzed ID (input echo) */
+  id: string;
+  
+  /** true if the ID passed all validations (format + checksum) */
+  valid: boolean;
+
+  /** Detailed analysis status (reason for invalidity or OK) */
+  status: SolidIdParseStatus;
+
+  /** Absolute timestamp in ms since 1970-01-01Z, if valid */
+  timestampMs?: number;
+
+   /** Raw 48-bit timestamp, relative to EPOCH_MS, if valid */
+  timestamp48?: bigint;
+
+  /** Raw 64-bit entropy, if valid */
+  entropy64?: bigint;
+  
+  /** 16-bit checksum stored in the ID */
+  checksum16?: bigint;
+
+  /** Recalculated checksum from (timestamp||entropy) */
+  computedChecksum16?: bigint;
+
+  /** Internal error message (useful for logs/debugging), if applicable */
+  errorMessage?: string;
+}
+
+/**
+ * Analyzes a SOLID ID and extracts its components.
+ * @param id The Base62 ID string (22 characters)
+ * @returns An object with the analyzed components and ID validity
+ * @remarks
+ * Useful for auditing, debugging, and time-window metrics.
+ * @example
+ * const parsed = parseSolidId(id);
+ * if (parsed.valid) console.log(new Date(parsed.timestampMs!));
  */
 export function parseSolidId(id: string): ParsedSolidId {
-  // Resultado padrão para IDs inválidos
-  const result: ParsedSolidId = { valid: false };
-  
-  // Verifica o comprimento e os caracteres válidos
-  if (id.length !== ID_LENGTH || !/^[0-9A-Za-z]+$/.test(id)) return result;
+  // Base result for any failure
+  const base: ParsedSolidId = {
+    id,
+    valid: false,
+    status: 'INVALID_LENGTH',
+  };
 
+  // 1) Length
+  if (id.length !== ID_LENGTH) {
+    return base;
+  }
+
+  // 2) Format (only [0-9A-Za-z])
+  if (!/^[0-9A-Za-z]+$/.test(id)) {
+    return {
+      ...base,
+      status: 'INVALID_FORMAT',
+    };
+  }
+  
   try {
-    // Decodifica o ID
+    // 3) Decodes Base62 to raw 128-bit BigInt
     const fullId = decodeBase62(id);
     
-    // Extrai os componentes
-    const checksum16 = Number(fullId & MASK_CHECKSUM);
-    const timestamp48 = fullId >> SHIFT_FOR_TIMESTAMP;
-    const entropy64 = (fullId >> SHIFT_FOR_ENTROPY) & MASK_ENTROPY;
+    // 4) Extracts fields and recalculates CRC-16
+    const { 
+      timestamp48, 
+      entropy64,
+      checksum16,
+      computedChecksum16
+    } = extractFieldsFromBigint(fullId);
 
-    // Recalcula o CRC para validação
-    const timestampBytes = bigintToBytes(timestamp48, 6);
-    const entropyBytes = bigintToBytes(entropy64, 8);
-    const combined = new Uint8Array(14);
-    combined.set(timestampBytes, 0);
-    combined.set(entropyBytes, 6);
-    const calculatedChecksum = crc16CCITT(combined);
-
-    // Compara os checksums e retorna o resultado se for inválido
-    if (checksum16 !== calculatedChecksum) return { valid: false }
+    // 5) Inconsistent checksum
+    if (checksum16 !== computedChecksum16) {
+      return {
+        id,
+        valid: false,
+        status: 'INVALID_CHECKSUM',
+        timestamp48,
+        entropy64,
+        checksum16,
+        computedChecksum16,
+      };
+    }
     
+    // 6) All OK: converts relative timestamp → absolute ms
     const timestampMs = Number(timestamp48) + EPOCH_MS;
+
     return {
+      id,
       valid: true,
+      status: 'OK',
       timestampMs,
       timestamp48,
       entropy64,
-      checksum16
+      checksum16,
+      computedChecksum16,
     };
-  } catch {
-    return result;
+  } catch (err) {
+    // Theoretically, with the regex, DECODE_ERROR only occurs in extreme cases,
+    // but it's good to map this scenario for debug/log.
+    return {
+      id,
+      valid: false,
+      status: 'DECODE_ERROR',
+      errorMessage: err instanceof Error ? err.message : String(err),
+    };
   }
 }
 
