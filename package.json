@@ -1,15 +1,15 @@
 {
   "name": "@ivan_a_souza/solid-id",
-  "version": "0.0.10",
+  "version": "0.0.11",
   "type": "module",
   "description": "**SOLID ID** (Sortable, Ordered, Legible, Indexed, Distributed) is a unique identifier generator in TypeScript that produces compact, lexicographically ordered, and secure IDs for distributed use.",
   "main": "dist/solid-id.cjs",
-  "module": "dist/solid-id.mjs",
+  "module": "dist/solid-id.js",
   "types": "dist/solid-id.d.ts",
   "exports": {
     ".": {
       "types": "./dist/solid-id.d.ts",
-      "import": "./dist/solid-id.mjs",
+      "import": "./dist/solid-id.js",
       "require": "./dist/solid-id.cjs"
     }
   },
