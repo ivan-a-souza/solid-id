@@ -15,7 +15,7 @@ Ideal for distributed systems, tracking, APIs, databases, and more.
 ## Installation
 
 ```bash
-npm install solid-id
+npm install @ivan_a_souza/solid-id
 ```
 
 ---
@@ -25,7 +25,7 @@ npm install solid-id
 ### Basic
 
 ```ts
-import { generateSolidId } from 'solid-id';
+import { generateSolidId } from '@ivan_a_souza/solid-id';
 
 const id = generateSolidId();
 console.log(id); // e.g., '8Z2pKf21M9sRgXJEyhwVBQ'
@@ -41,7 +41,7 @@ import {
   validateSolidId, 
   getTimestampFromSolidId, 
   parseSolidId 
-} from 'solid-id';
+} from '@ivan_a_souza/solid-id';
 
 // 1. Generate ID
 const id = generateSolidId();
