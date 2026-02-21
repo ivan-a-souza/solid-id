@@ -99,7 +99,7 @@ Returns a `ParsedSolidId` object with internal details:
 | --------- | ---- | ------------------------------------------------------- |
 | Timestamp | 48   | Time in milliseconds since 1985-05-17                   |
 | Entropy   | 64   | Random bits generated with `crypto.getRandomValues`     |
-| Checksum  | 16   | Simple verification (XOR between timestamp and entropy) |
+| Checksum  | 16   | Integrity verification using the CRC-16-CCITT algorithm |
 | Total     | 128  | Encoded in 22 Base62 characters                         |
 
 ---
