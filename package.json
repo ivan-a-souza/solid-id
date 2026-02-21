@@ -1,6 +1,9 @@
 {
   "name": "solid-id",
-  "version": "0.0.1",
+  "version": "0.0.4",
+  "publishConfig": {
+    "registry": "https://registry.npmjs.org/"
+  },
   "type": "module",
   "description": "**SOLID ID** (Sortable, Ordered, Legible, Indexed, Distributed) is a unique identifier generator in TypeScript that produces compact, lexicographically ordered, and secure IDs for distributed use.",
   "main": "dist/solid-id.cjs",
