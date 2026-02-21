@@ -26,6 +26,14 @@ jobs:
       - name: Build
         run: npm run build
 
+      - name: Verify Authentication Token
+        run: |
+          if [ -z "${{ secrets.NPM_TOKEN }}" ]; then
+            echo "Error: NPM_TOKEN secret is empty or missing!"
+            echo "Make sure it is added as a 'Repository Secret', NOT an 'Environment Secret'."
+            exit 1
+          fi
+
       - name: Publish
         run: npm publish --access public
         env:
