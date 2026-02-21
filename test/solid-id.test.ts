@@ -15,16 +15,16 @@ import {
 } from '../src/solid-id';
 
 /**
- * Testes para a geração e validação do SOLID ID
+ * Tests for SOLID ID generation and validation
  */
-describe('SOLID ID - básico', () => {
-  it('deve gerar um ID com 22 caracteres em Base62', () => {
+describe('SOLID ID - Basic', () => {
+  it('should generate a 22-character Base62 ID', () => {
     const id = generateSolidId();
     expect(id).toHaveLength(22);
     expect(id).toMatch(/^[0-9A-Za-z]{22}$/);
   });
 
-  it('deve gerar IDs únicos em chamadas consecutivas', () => {
+  it('should generate unique IDs in consecutive calls', () => {
     const id1 = generateSolidId();
     const id2 = generateSolidId();
     expect(id1).not.toBe(id2);
@@ -32,15 +32,15 @@ describe('SOLID ID - básico', () => {
 });
 
 /**
-* Validação, parsing e integridade
-*/
-describe('SOLID ID - validação, parsing e CRC', () => {
-  it('deve validar um ID recém-gerado', () => {
+ * Validation, parsing, and integrity tests
+ */
+describe('SOLID ID - Validation, Parsing, and CRC', () => {
+  it('should validate a freshly generated ID', () => {
     const id = generateSolidId();
     expect(validateSolidId(id)).toBe(true);
   });
 
-  it('deve falhar na validação para um ID alterado', () => {
+  it('should fail validation for a corrupted ID', () => {
     const id = generateSolidId();
     const last = id[id.length - 1];
     const other = last === 'A' ? 'B' : 'A';
@@ -48,25 +48,25 @@ describe('SOLID ID - validação, parsing e CRC', () => {
     expect(validateSolidId(corrupted)).toBe(false);
   });
 
-  it('deve analisar um ID gerado corretamente e se todos os campos estão coerentes e válidos', () => {
+  it('should correctly parse a generated ID and verify field consistency', () => {
     const id = generateSolidId();
     const parsed = parseSolidId(id);
 
-    // Deve indicar válido
+    // Should indicate valid
     expect(parsed).toBeTruthy();
     expect(parsed.valid).toBe(true);
     expect(parsed.status).toBe('OK');
 
-    // timestampMs deve existir e ser número finito
+    // timestampMs should exist and be a finite number
     expect(typeof parsed.timestampMs).toBe('number');
     expect(Number.isFinite(parsed.timestampMs)).toBe(true);
 
-    // getTimestampFromSolidId deve bater com o timestampMs do parse
+    // getTimestampFromSolidId should match the parsed timestampMs
     const dt = getTimestampFromSolidId(id);
     expect(dt.getTime()).toBe(parsed.timestampMs);
   });
 
-  it('deve detectar se um ID gerado foi corrompido', () => {
+  it('should detect if a generated ID was corrupted', () => {
     const id = generateSolidId();
     const corrupted = id.slice(0, -1) + (id.endsWith('0') ? '1' : '0');
     const parsed = parseSolidId(corrupted);
@@ -74,8 +74,8 @@ describe('SOLID ID - validação, parsing e CRC', () => {
     expect(parsed.status).toBe('INVALID_CHECKSUM');
   });
 
-  it('CRC-16 detecta alteração de payload (timestamp||entropy)', () => {
-    // Simula valores fixos
+  it('CRC-16 should detect changes in payload (timestamp||entropy)', () => {
+    // Simulates fixed values
     const timestamp = 1234567890123n;
     const entropy = 987654321987654321n;
 
@@ -86,20 +86,20 @@ describe('SOLID ID - validação, parsing e CRC', () => {
 
     const crcOriginal = crc16CCITT(original);
 
-    // Simula corrupção de dados (altera um byte)
-    const alterado = new Uint8Array(original);
-    alterado[3] ^= 0xff; // corrompe 1 byte
+    // Simulates data corruption (alters one byte)
+    const altered = new Uint8Array(original);
+    altered[3] ^= 0xff; // corrupts 1 byte
 
-    // Calcula o CRC do dado alterado
-    const crcAlterado = crc16CCITT(alterado);
+    // Calculates CRC of the altered data
+    const crcAltered = crc16CCITT(altered);
 
-    // Verifica se o CRC do dado alterado é diferente do original
-    expect(crcAlterado).not.toBe(crcOriginal);
+    // Verifies if the altered CRC is different from the original
+    expect(crcAltered).not.toBe(crcOriginal);
   });
 
-  it('encodeBase62/decodeBase62 mantém valor (round-trip)', () => {
+  it('encodeBase62/decodeBase62 should maintain value (round-trip)', () => {
     for (let i = 0; i < 200; i++) {
-      // gera um bigint aleatório de até 128 bits
+      // generates a random bigint up to 128 bits
       const a = BigInt.asUintN(128, BigInt(Math.floor(Math.random()*2**30)) << 98n | 123456789n);
       const enc = encodeBase62(a);
       const dec = decodeBase62(enc);
@@ -107,7 +107,7 @@ describe('SOLID ID - validação, parsing e CRC', () => {
     }
   });
 
-  it('ordenação lexicográfica segue o tempo', () => {
+  it('lexicographical ordering should follow time', () => {
     const t0 = EPOCH_MS + 1_000;
     const ids = [
       generateSolidId({ nowMs: t0 }),
@@ -118,13 +118,13 @@ describe('SOLID ID - validação, parsing e CRC', () => {
     expect(sorted).toEqual(ids);
   });
 
-  it('falha para comprimento inválido e caracteres inválidos', () => {
+  it('should fail for invalid length and invalid characters', () => {
     expect(validateSolidId('')).toBe(false);
     expect(validateSolidId('A'.repeat(21))).toBe(false);
     expect(() => decodeBase62('!'.repeat(22))).toThrow();
   });
 
-  it('respeita limites do timestamp de 48 bits', () => {
+  it('should respect 48-bit timestamp limits', () => {
     const max = EPOCH_MS + Number((1n << 48n) - 1n);
     expect(() => generateSolidId({ nowMs: max })).not.toThrow();
     expect(() => generateSolidId({ nowMs: max + 1 })).toThrow(); // out of range
@@ -132,18 +132,18 @@ describe('SOLID ID - validação, parsing e CRC', () => {
 });
 
 /**
-* Stress test opcional (habilite com STRESS_SOLID=1)
-* Evita tornar a suíte lenta em CI.
-*/
-describe.skipIf(!process.env.STRESS_SOLID)('SOLID ID - stress opcional', () => {
-  it('deve gerar 1 milhão de IDs únicos no mesmo milissegundo', () => {
-    // Conjunto para armazenar IDs únicos
+ * Optional stress tests (enable with STRESS_SOLID=1)
+ * Avoids slowing down the suite in CI.
+ */
+describe.skipIf(!process.env.STRESS_SOLID)('SOLID ID - Optional Stress Tests', () => {
+  it('should generate 1 million unique IDs within the same millisecond', () => {
+    // Set to store unique IDs
     const ids = new Set<string>();
-    // Número de iterações
+    // Number of iterations
     const iterations = 1_000_000;
-    // Tempo fixo para simular o mesmo milissegundo
+    // Fixed time to simulate the same millisecond
     const fixedNow = Date.now() ;
-    // Monkey patch: sobrescreve Date.now temporariamente
+    // Monkey patch: temporarily overrides Date.now
     const originalNow = Date.now;
     Date.now = () => fixedNow;
 
@@ -151,21 +151,21 @@ describe.skipIf(!process.env.STRESS_SOLID)('SOLID ID - stress opcional', () => {
     for (let i = 0; i < iterations; i++) {
       const id = generateSolidId();
       if (ids.has(id)) {
-        console.error(`Colisão detectada: ${id}`);
+        console.error(`Collision detected: ${id}`);
       }
       ids.add(id);
     }
     console.timeEnd('Generate IDs');
 
-    console.log(`IDs únicos gerados: ${ids.size}`);
+    console.log(`Unique IDs generated: ${ids.size}`);
 
-    // Restaura o comportamento original de Date.now
+    // Restores original Date.now behavior
     Date.now = originalNow;
 
     expect(ids.size).toBe(iterations);
-  }, 60_000); // timeout maior para este teste
+  }, 60_000); // higher timeout for this test
 
-  it('deve ser reprodutível com nowMs fixo e rng fixo', () => {
+  it('should be reproducible with fixed nowMs and fixed rng', () => {
     const fixed = EPOCH_MS + 123_456;
     const rngZero: RandomSource64 = () => 0n;
 
@@ -174,12 +174,12 @@ describe.skipIf(!process.env.STRESS_SOLID)('SOLID ID - stress opcional', () => {
     expect(a).toBe(b);
   });
 
-  it('deve gerar 1 milhão de IDs únicos no mesmo milissegundo com rng sequencial', () => {
-    // Conjunto para armazenar IDs únicos
+  it('should generate 1 million unique IDs within the same millisecond with sequential rng', () => {
+    // Set to store unique IDs
     const ids = new Set<string>();
-    // Número de iterações
+    // Number of iterations
     const iterations = 1_000_000;
-    // Tempo fixo para simular o mesmo milissegundo
+    // Fixed time to simulate the same millisecond
     const fixed = EPOCH_MS + 777_777;
     const rngSeq = (seed = 0n): RandomSource64 => {
       let s = seed;
@@ -192,20 +192,20 @@ describe.skipIf(!process.env.STRESS_SOLID)('SOLID ID - stress opcional', () => {
     }
     console.timeEnd('Generate IDs');
 
-    console.log(`IDs únicos gerados: ${ids.size}`);
+    console.log(`Unique IDs generated: ${ids.size}`);
 
     expect(ids.size).toBe(iterations);
-  }, 60_000); // timeout maior para este teste
+  }, 60_000); // higher timeout for this test
 
-  it('deve analisar um ID gerado corretamente', () => {
+  it('should correctly parse a generated ID', () => {
     const id = generateSolidId();
     const parsed = parseSolidId(id);
 
     if (parsed.valid) {
-      console.log(new Date(parsed.timestampMs!)); // data do ID
-      console.log(parsed.entropy64!.toString(16)); // entropia em hex
+      console.log(new Date(parsed.timestampMs!)); // ID date
+      console.log(parsed.entropy64!.toString(16)); // entropy in hex
     } else {
-      console.warn('ID inválido/corrompido');
+      console.warn('Invalid/corrupted ID');
     }
   });
 
